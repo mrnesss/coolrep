@@ -2,6 +2,10 @@ package com.worldcanvas.app;
 
 import android.annotation.TargetApi;
 import android.app.Activity;
+
+import android.content.Context;
+import android.app.Dialog;
+import android.app.DialogFragment;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentSender;
@@ -17,8 +21,10 @@ import android.opengl.GLSurfaceView;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Vibrator;
 import android.support.v4.app.FragmentActivity;
 import android.util.Log;
+import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.widget.FrameLayout;
@@ -149,6 +155,9 @@ public class CameraActivity extends FragmentActivity implements GooglePlayServic
         final FrameLayout shade = (FrameLayout)findViewById(R.id.shade);
         final Animation animationFadeOut = AnimationUtils.loadAnimation(this, R.anim.fade_out);
         shade.startAnimation(animationFadeOut);
+        final FrameLayout captureL = (FrameLayout) findViewById(R.id.capture);
+        captureL.setVisibility(View.INVISIBLE);
+        final Animation capture = AnimationUtils.loadAnimation(this, R.anim.fade_in);
 
         //animation2 AnimationListener
         animationFadeOut.setAnimationListener(new Animation.AnimationListener(){
@@ -163,6 +172,18 @@ public class CameraActivity extends FragmentActivity implements GooglePlayServic
             public void onAnimationStart(Animation arg0) {}
             @Override
             public void onAnimationRepeat(Animation arg0) {}
+        });
+
+        preview.setOnLongClickListener( new View.OnLongClickListener(){
+
+            @Override
+            public boolean onLongClick(View view) {
+                captureL.startAnimation(capture);
+                Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+                // Vibrate for 500 milliseconds
+                v.vibrate(500);
+                return false;
+            }
         });
 
     }
