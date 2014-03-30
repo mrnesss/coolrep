@@ -22,6 +22,7 @@
 
         <TextView
             android:text="@string/notify"
+            android:textColor="#cccccc"
             android:gravity="center"
             android:layout_gravity="center"
             android:textSize="@dimen/notify_size"
@@ -82,7 +83,7 @@
             android:layout_marginTop="10dp"
             android:layout_width="100dp"
             android:layout_height="wrap_content"
-            android:textColor="#ffffff"
+            android:textColor="#cccccc"
             android:background="@drawable/post_style"
             android:textSize="10pt"
             android:text="Post"

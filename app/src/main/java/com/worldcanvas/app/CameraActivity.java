@@ -115,7 +115,7 @@ public class CameraActivity extends FragmentActivity implements GooglePlayServic
 
     /* barometro */
     Sensor pressure;
-    float altitude;
+    float altitude = 0;
     Queue<Float> history;
     int historySize;
     float avgPressure;
@@ -205,6 +205,7 @@ public class CameraActivity extends FragmentActivity implements GooglePlayServic
                 String msg_data = msg.getText().toString();
                 String autor_data = autor.getText().toString();
                 window.setVisibility(View.INVISIBLE);
+                saveComment(msg_data);
             }
         });
     }
@@ -437,7 +438,8 @@ public class CameraActivity extends FragmentActivity implements GooglePlayServic
 
     /*save the comment*/
     public void saveComment(String msg){
-        ConexionLayer.saveComment(msg,null
+        Log.e("latitud param",""+altitude);
+        ConexionLayer.saveComment("anonim",msg
                 ,m_lastPitch,m_lastRoll,m_lastYaw
                 ,currentLocation.getLongitude(),currentLocation.getLatitude(),altitude,handler);
     }
@@ -498,6 +500,7 @@ public class CameraActivity extends FragmentActivity implements GooglePlayServic
     }
     @Override
     public void onSensorChanged(SensorEvent event) {
+        Log.e("event",""+event.sensor.getType());
 
         if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
             accel(event);
@@ -512,6 +515,7 @@ public class CameraActivity extends FragmentActivity implements GooglePlayServic
 
           try {
             float temp = (float)(json.getJSONObject("main").getDouble("temp"));
+            Log.e("temp",""+temp);
             pressurej = (float)(json.getJSONObject("main").getInt("pressure"));
             /*float stdPressure = SensorManager.PRESSURE_STANDARD_ATMOSPHERE;
 
@@ -523,6 +527,7 @@ public class CameraActivity extends FragmentActivity implements GooglePlayServic
 
             } catch(Exception e) {
               e.getMessage();
+              Log.e("error alt",""+e.getMessage());
             }
 
 
@@ -539,6 +544,7 @@ public class CameraActivity extends FragmentActivity implements GooglePlayServic
             }
             if(pressurej != -1.0f) {
                altitude = (952 * ((pressurej - (avgPressure / historySize)) / 33.86f)) / 0.3048f;
+                Log.e("altitud test",""+altitude);
             } else
                  Log.e("fetchData","fetchData");
             }

@@ -23,8 +23,6 @@ public class ConexionLayer {
 
     public static void saveComment(String author,String comment,float vX,float vY,float vZ,double gX,double gY,float gZ,AsyncHttpResponseHandler responseHandler){
         RequestParams params = new RequestParams();
-        RequestParams paramsVPosition = new RequestParams();
-        RequestParams paramsGPosition = new RequestParams();
 
         String resource = saveCommentUrl;
         params.put("author",author+"");
