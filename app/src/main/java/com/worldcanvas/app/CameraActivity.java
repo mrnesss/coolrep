@@ -2,17 +2,19 @@ package com.worldcanvas.app;
 
 import android.annotation.TargetApi;
 import android.app.Activity;
-import android.app.Dialog;
-import android.app.DialogFragment;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.content.SharedPreferences;
 import android.graphics.PixelFormat;
 import android.hardware.Camera;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.location.Location;
-import android.location.LocationManager;
 import android.opengl.GLSurfaceView;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.v4.app.FragmentActivity;
@@ -24,20 +26,29 @@ import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesClient;
-import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.location.LocationClient;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
-import com.google.android.gms.maps.GoogleMap;
-import com.google.android.gms.maps.LocationSource;
-import com.google.android.gms.maps.MapFragment;
+import com.loopj.android.http.JsonHttpResponseHandler;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.Queue;
 
 /**
  * Created by Mario on 3/23/2014.
  */
 public class CameraActivity extends FragmentActivity implements GooglePlayServicesClient.ConnectionCallbacks,
                                                                 GooglePlayServicesClient.OnConnectionFailedListener,
-                                                                LocationListener {
+                                                                LocationListener,
+                                                                SensorEventListener{
     private Camera camera;
     private CameraPreview cameraPreview;
     private GLSurfaceView glView;
@@ -48,19 +59,67 @@ public class CameraActivity extends FragmentActivity implements GooglePlayServic
     private SharedPreferences preferences;
     private SharedPreferences.Editor editor;
 
-
+    private JsonHttpResponseHandler handler = new JsonHttpResponseHandler(){
+        @Override
+        public void onFailure(Throwable arg0) {
+            Toast.makeText(getApplicationContext(), "Network error, please try again later.",Toast.LENGTH_LONG).show();
+        }
+        @Override
+        public void onSuccess(JSONArray ok) {
+            succesSaveComment(ok);
+        }
+    };
 
     private final static int CONNECTION_FAILURE_RESOLUTION_REQUEST = 9000;
     private final static int MILLI_SECONDS_REQUEST = 2500;
     private final static int MAX_MILLI_SECONDS_REQUEST = 1000;
 
+    /* sensor data */
+    SensorManager m_sensorManager;
+    float []m_lastMagFields;
+    float []m_lastAccels;
+    private float[] m_rotationMatrix = new float[16];
+    private float[] m_remappedR = new float[16];
+    private float[] m_orientation = new float[4];
+
+    /* fix random noise by averaging tilt values */
+    final static int AVERAGE_BUFFER = 30;
+    float []m_prevPitch = new float[AVERAGE_BUFFER];
+    float m_lastPitch = 0.f;
+    float m_lastYaw = 0.f;
+    /* current index int m_prevEasts */
+    int m_pitchIndex = 0;
+
+    float []m_prevRoll = new float[AVERAGE_BUFFER];
+    float m_lastRoll = 0.f;
+    /* current index into m_prevTilts */
+    int m_rollIndex = 0;
+
+    /* center of the rotation */
+    private float m_tiltCentreX = 0.f;
+    private float m_tiltCentreY = 0.f;
+    private float m_tiltCentreZ = 0.f;
+
+    /* barometro */
+    Sensor pressure;
+    float altitude;
+    Queue<Float> history;
+    int historySize;
+    float avgPressure;
+    float ctemp;
+    JSONObject json;
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.camera_preview);
+        m_sensorManager = (SensorManager)getSystemService(Context.SENSOR_SERVICE);
+        registerListeners();
         camera = getCameraInstance();
         camera.setDisplayOrientation(90);
         cameraPreview = new CameraPreview(this, camera);
+
 
         //create the locationClient to get the actual location
         locationClient = new LocationClient(this,this,this);
@@ -112,14 +171,18 @@ public class CameraActivity extends FragmentActivity implements GooglePlayServic
     protected void onPause() {
         editor.putBoolean("KEY_UPDATES_ON",requestUpdates);
         editor.commit();
-        super.onPause();
+        m_sensorManager.unregisterListener(this);
         releaseCamera();
+        unregisterListeners();
         glView.onPause();
+        super.onPause();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        m_sensorManager.registerListener(this, pressure, SensorManager.SENSOR_DELAY_GAME);
+        registerListeners();
         glView.onResume();
         if (preferences.contains("KEY_UPDATES_ON")){
             requestUpdates = preferences.getBoolean("KEY_UPDATES_ON", true);
@@ -127,6 +190,22 @@ public class CameraActivity extends FragmentActivity implements GooglePlayServic
             editor.putBoolean("KEY_UPDATES_ON", false);
             editor.commit();
         }
+    }
+
+
+    @Override
+    public void onDestroy() {
+        unregisterListeners();
+        super.onDestroy();
+    }
+
+    private void registerListeners() {
+        m_sensorManager.registerListener(this, m_sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD), SensorManager.SENSOR_DELAY_GAME);
+        m_sensorManager.registerListener(this, m_sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), SensorManager.SENSOR_DELAY_GAME);
+    }
+
+    private void unregisterListeners() {
+        m_sensorManager.unregisterListener(this);
     }
 
 
@@ -227,14 +306,203 @@ public class CameraActivity extends FragmentActivity implements GooglePlayServic
                 }
         }
     }
-
+    /*retreive new locations */
     @Override
     public void onLocationChanged(Location location) {
-        if (location.getAccuracy() < 90)
+        if (location.getAccuracy() < 90){
+            currentLocation = location;
             Log.e("la latitud "+location.getLatitude()+" ",location.getLongitude()+" ");
+        }
     }
 
-    /*retreive new locations */
+    /*display toast message of succes*/
+    public void succesSaveComment(JSONArray ok){
+        try{
+           Toast.makeText(this,ok.getJSONObject(0).getString("msg"),Toast.LENGTH_SHORT).show();
+        }catch (JSONException e){
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int i) {
+
+    }
+    private void accel(SensorEvent event) {
+        if (m_lastAccels == null) {
+            m_lastAccels = new float[3];
+        }
+
+        System.arraycopy(event.values, 0, m_lastAccels, 0, 3);
+
+        /*if (m_lastMagFields != null) {
+            computeOrientation();
+        }*/
+    }
+
+    private void mag(SensorEvent event) {
+        if (m_lastMagFields == null) {
+            m_lastMagFields = new float[3];
+        }
+
+        System.arraycopy(event.values, 0, m_lastMagFields, 0, 3);
+
+        if (m_lastAccels != null) {
+            computeOrientation();
+        }
+    }
+
+    Filter [] m_filters = { new Filter(), new Filter(), new Filter() };
+
+    private class Filter {
+        static final int AVERAGE_BUFFER = 10;
+        float []m_arr = new float[AVERAGE_BUFFER];
+        int m_idx = 0;
+
+        public float append(float val) {
+            m_arr[m_idx] = val;
+            m_idx++;
+            if (m_idx == AVERAGE_BUFFER)
+                m_idx = 0;
+            return avg();
+        }
+        public float avg() {
+            float sum = 0;
+            for (float x: m_arr)
+                sum += x;
+            return sum / AVERAGE_BUFFER;
+        }
+
+    }
+
+    private void computeOrientation() {
+        if (SensorManager.getRotationMatrix(m_rotationMatrix, null, m_lastAccels,m_lastMagFields)) {
+            SensorManager.getOrientation(m_rotationMatrix, m_orientation);
+
+            /* 1 radian = 57.2957795 degrees */
+            /* [0] : yaw, rotation around z axis
+             * [1] : pitch, rotation around x axis
+             * [2] : roll, rotation around y axis */
+            float yaw = m_orientation[0] * 57.2957795f;
+            float pitch = m_orientation[1] * 57.2957795f;
+            float roll = m_orientation[2] * 57.2957795f;
+
+            m_lastYaw = m_filters[0].append(yaw);
+            m_lastPitch = m_filters[1].append(pitch);
+            m_lastRoll = m_filters[2].append(roll);
+        }
+    }
+
+    /*save the comment*/
+    public void saveComment(String msg){
+        ConexionLayer.saveComment(msg,null
+                ,m_lastPitch,m_lastRoll,m_lastYaw
+                ,currentLocation.getLongitude(),currentLocation.getLatitude(),altitude,handler);
+    }
+
+    private class JSONWeatherTask extends AsyncTask<String, Void, JSONObject> {
+
+        String url = "http://api.openweathermap.org/data/2.5/weather?q=";
+        JSONObject json;
+
+        //http://openweathermap.org/data/2.3/forecast/city?id=524901&APPID=1111111111
+
+        public String getWeatherData(String location) {
+            HttpURLConnection con = null ;
+            InputStream is = null;
+
+            try {
+                con = (HttpURLConnection) (new URL(url + location)).openConnection();
+                con.setRequestMethod("GET");
+                con.setDoInput(true);
+                con.setDoOutput(true);
+                con.connect();
+
+                // Let's read the response
+                StringBuffer buffer = new StringBuffer();
+                is = con.getInputStream();
+                BufferedReader br = new BufferedReader(new InputStreamReader(is));
+                String line = null;
+                while ( (line = br.readLine()) != null )
+                    buffer.append(line + "\r\n");
+
+                is.close();
+                con.disconnect();
+                return buffer.toString();
+            }
+            catch(Throwable t) {
+                t.printStackTrace();
+            }
+            finally {
+                try { is.close(); } catch(Throwable t) {}
+                try { con.disconnect(); } catch(Throwable t) {}
+            }
+
+            return null;
+        }
+
+        @Override
+        protected JSONObject doInBackground(String... params) {
+            String data = (getWeatherData(params[0]));
+            JSONObject json = new JSONObject();
+
+            try {
+                json = new JSONObject(data);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return json;
+        }
+    }
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+
+        if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+            accel(event);
+        }
+        if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {
+            mag(event);
+        }
+        if (event.sensor.getType() == Sensor.TYPE_PRESSURE){
+          float meters;
+          float c;
+          float pressurej = -1.0f;
+
+          try {
+            float temp = (float)(json.getJSONObject("main").getDouble("temp"));
+            pressurej = (float)(json.getJSONObject("main").getInt("pressure"));
+            /*float stdPressure = SensorManager.PRESSURE_STANDARD_ATMOSPHERE;
+
+            float mmc = 1.3332239f;
+            float ctemp = temp - 273.15f;
+
+            c = (16 * (1 + (4 * ctemp)));
+            meters = (c * ((stdPressure - pressure) * mmc)) / ((stdPressure + pressure) * mmc);*/
+
+            } catch(Exception e) {
+              e.getMessage();
+            }
+
+
+            if(historySize < 100){
+               history.add(event.values[0]);
+               historySize++;
+            } else {
+               history.remove();
+               history.add(event.values[0]);
+            }
+            avgPressure = 0;
+            for(Float f : history) {
+              avgPressure += f;
+            }
+            if(pressurej != -1.0f) {
+               altitude = (952 * ((pressurej - (avgPressure / historySize)) / 33.86f)) / 0.3048f;
+            } else
+                 Log.e("fetchData","fetchData");
+            }
+    }
+
+
 
 
 
