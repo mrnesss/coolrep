@@ -20,9 +20,13 @@ import android.os.Vibrator;
 import android.support.v4.app.FragmentActivity;
 import android.util.Log;
 import android.view.View;
+import android.view.View.OnClickListener;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -50,8 +54,9 @@ public class CameraActivity extends FragmentActivity implements GooglePlayServic
     private boolean requestUpdates;
     private SharedPreferences preferences;
     private SharedPreferences.Editor editor;
-
-
+    private EditText msg, autor;
+    private LinearLayout window;
+    private Button post;
 
     private final static int CONNECTION_FAILURE_RESOLUTION_REQUEST = 9000;
     private final static int MILLI_SECONDS_REQUEST = 2500;
@@ -96,6 +101,10 @@ public class CameraActivity extends FragmentActivity implements GooglePlayServic
         final FrameLayout captureL = (FrameLayout) findViewById(R.id.capture);
         captureL.setVisibility(View.INVISIBLE);
         final Animation capture = AnimationUtils.loadAnimation(this, R.anim.fade_in);
+        window = (LinearLayout) findViewById(R.id.window);
+        autor = (EditText) findViewById(R.id.autor); autor.requestFocus();
+        msg = (EditText) findViewById(R.id.msg); msg.requestFocus();
+        post = (Button) findViewById(R.id.post);
 
         //animation2 AnimationListener
         animationFadeOut.setAnimationListener(new Animation.AnimationListener(){
@@ -120,13 +129,23 @@ public class CameraActivity extends FragmentActivity implements GooglePlayServic
                 Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
                 // Vibrate for 500 milliseconds
                 v.vibrate(500);
+                window.setVisibility(View.VISIBLE);
                 return false;
             }
         });
 
+        post.setOnClickListener(new OnClickListener() {
+
+            @Override
+            public void onClick(View view) {
+                String msg_data = msg.getText().toString();
+                String autor_data = autor.getText().toString();
+                window.setVisibility(View.INVISIBLE);
+            }
+        });
     }
 
-    @Override
+        @Override
     protected void onPause() {
         editor.putBoolean("KEY_UPDATES_ON",requestUpdates);
         editor.commit();

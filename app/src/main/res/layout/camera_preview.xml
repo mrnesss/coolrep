@@ -3,6 +3,7 @@
     android:orientation="horizontal"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
+    android:id="@+id/main"
     >
     <FrameLayout
         android:id="@+id/camera_preview"
@@ -29,11 +30,63 @@
 
     </FrameLayout>
     <FrameLayout
+        android:orientation="vertical"
         android:id="@+id/capture"
         android:visibility="invisible"
         android:layout_width="fill_parent"
         android:layout_height="fill_parent"
         android:layout_gravity="center"
-        android:background="#ffffff"></FrameLayout>
+        android:background="#ffffff">
+    </FrameLayout>
+
+    <LinearLayout
+        android:id="@+id/window"
+        android:orientation="vertical"
+        android:visibility="invisible"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:layout_marginTop="110dp"
+        android:layout_marginBottom="110dp"
+        android:layout_marginLeft="35dp"
+        android:layout_marginRight="35dp"
+        android:background="#70000000"
+        android:padding="10dp"
+        android:gravity="center">
+        <EditText
+            android:layout_width="fill_parent"
+            android:layout_height="25dp"
+            android:id="@+id/autor"
+            android:background="#ffffff"
+            android:hint="Who are you?"
+            android:ems="13"
+            android:inputType="text"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentRight="true"
+            android:layout_alignParentEnd="true"/>
+
+        <EditText
+            android:layout_width="fill_parent"
+            android:layout_height="175dp"
+            android:id="@+id/msg"
+            android:background="#ffffff"
+            android:hint="Want to leave a message?"
+            android:ems="13"
+            android:inputType="text"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentRight="true"
+            android:layout_alignParentEnd="true"
+            android:layout_marginTop="10dp"
+            android:gravity="top"/>
+
+        <Button
+            android:layout_marginTop="10dp"
+            android:layout_width="100dp"
+            android:layout_height="wrap_content"
+            android:textColor="#ffffff"
+            android:background="@drawable/post_style"
+            android:textSize="10pt"
+            android:text="Post"
+            android:id="@+id/post" />
+    </LinearLayout>
 
 </RelativeLayout>
