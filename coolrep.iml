@@ -10,7 +10,10 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
+<<<<<<< HEAD
     <orderEntry type="library" name="Gradle: 19.0.1" level="project" />
+=======
+>>>>>>> 5a207d43d5102ded8f032c3b178f4cbec25b8e81
   </component>
 </module>
 

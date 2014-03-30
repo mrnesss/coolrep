@@ -17,6 +17,8 @@ import android.os.Build;
 import android.os.Bundle;
 import android.support.v4.app.FragmentActivity;
 import android.util.Log;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 
@@ -82,8 +84,28 @@ public class CameraActivity extends FragmentActivity implements GooglePlayServic
         glView.setRenderer(new GLRenderer());
 
         FrameLayout preview = (FrameLayout)this.findViewById(R.id.camera_preview);
-        preview.addView(glView);
+        //preview.addView(glView);
         preview.addView(cameraPreview);
+
+        final FrameLayout shade = (FrameLayout)findViewById(R.id.shade);
+        final Animation animationFadeOut = AnimationUtils.loadAnimation(this, R.anim.fade_out);
+        shade.startAnimation(animationFadeOut);
+
+        //animation2 AnimationListener
+        animationFadeOut.setAnimationListener(new Animation.AnimationListener(){
+
+            @TargetApi(Build.VERSION_CODES.HONEYCOMB)
+            @Override
+            public void onAnimationEnd(Animation arg0) {
+                // start animation1 when animation2 ends (repeat)
+                shade.setAlpha(0);
+            }
+            @Override
+            public void onAnimationStart(Animation arg0) {}
+            @Override
+            public void onAnimationRepeat(Animation arg0) {}
+        });
+
     }
 
     @Override
