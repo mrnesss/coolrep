@@ -21,27 +21,25 @@ public class ConexionLayer {
     private static AsyncHttpClient client = new AsyncHttpClient();
 
 
-    public static void saveComment(String author,String comment,String[] vPosition, String[] gPosition,AsyncHttpResponseHandler responseHandler){
+    public static void saveComment(String author,String comment,float vX,float vY,float vZ,double gX,double gY,float gZ,AsyncHttpResponseHandler responseHandler){
         RequestParams params = new RequestParams();
         RequestParams paramsVPosition = new RequestParams();
         RequestParams paramsGPosition = new RequestParams();
 
         String resource = saveCommentUrl;
         params.put("author",author+"");
-        params.put("comment",comment+"");
-        paramsVPosition.put("x",vPosition[0]+"");
-        paramsVPosition.put("y",vPosition[1]+"");
-        paramsVPosition.put("z",vPosition[2]+"");
-        params.put("vPosition",paramsVPosition);
-        paramsGPosition.put("x",gPosition[0]+"");
-        paramsGPosition.put("y",gPosition[1]+"");
-        paramsGPosition.put("z",gPosition[2]+"");
-        params.put("vPosition",paramsGPosition);
+        params.put("content",comment+"");
+        params.put("vX",vX+"");
+        params.put("vY",vY+"");
+        params.put("vZ",vZ+"");
+        params.put("gX",gX+"");
+        params.put("gY",gY+"");
+        params.put("gZ",gZ+"");
         ConexionLayer.post(resource, params, responseHandler);
 
     }
 
-    public static void getComments(int x,int y,int z,int error,AsyncHttpResponseHandler responseHandler){
+    public static void getComments(double x,double y,float z,float error,AsyncHttpResponseHandler responseHandler){
         RequestParams params = new RequestParams();
 
         String resource = getRecentLocationCommentsUrl;
